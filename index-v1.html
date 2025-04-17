@@ -42,7 +42,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    input[type="number"], select {
+    input[type="number"], input[type="file"], select {
       width: 100%;
       padding: 8px;
       border: 1px solid #ddd;
@@ -89,11 +89,6 @@
       font-style: italic;
       color: #777;
     }
-    #audio-preview {
-      display: none;
-      margin-top: 8px;
-      width: 100%;
-    }
   </style>
 </head>
 <body>
@@ -121,9 +116,9 @@
   </div>
   
   <div class="input-group">
-    <label for="beep-sound">Select beep sound:</label>
-    <select id="beep-sound"></select>
-    <audio id="audio-preview" controls></audio>
+    <label for="beep-file">Select beep sound (audio file):</label>
+    <input type="file" id="beep-file" accept="audio/*">
+    <div id="beep-file-name" style="font-size:14px;color:#555;margin-top:4px;"></div>
   </div>
   
   <button id="start-btn">Start Meditation</button>
@@ -144,8 +139,8 @@
       const totalDurationInput = document.getElementById('total-duration-minutes');
       const sessionDurationInput = document.getElementById('session-duration');
       const beepIntervalInput = document.getElementById('beep-interval');
-      const beepSoundSelect = document.getElementById('beep-sound');
-      const audioPreview = document.getElementById('audio-preview');
+      const beepFileInput = document.getElementById('beep-file');
+      const beepFileNameDiv = document.getElementById('beep-file-name');
       const startBtn = document.getElementById('start-btn');
       const stopBtn = document.getElementById('stop-btn');
       const currentRepElement = document.getElementById('current-rep');
@@ -156,7 +151,8 @@
       const presetBtns = document.querySelectorAll('.preset-btn');
       
       // Audio variables
-      let beepAudioFile = null;
+      let beepAudioURL = null;
+      let beepAudio = null;
       
       // Timer variables
       let timerRunning = false;
@@ -168,55 +164,6 @@
       let totalDurationSeconds = 0;
       let sessionSeconds = 0;
       let beepInterval = 0;
-
-      // Populate beep sound dropdown from /Audio/
-      function populateBeepSounds() {
-        fetch('/Audio/')
-          .then(response => response.text())
-          .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const links = Array.from(doc.querySelectorAll('a'));
-            const audioFiles = links
-              .map(a => a.getAttribute('href'))
-              .filter(href => href && href.match(/\.(mp3|wav|ogg|m4a)$/i) && !href.startsWith('?'))
-              .map(href => decodeURIComponent(href.replace(/^\//, '')));
-
-            beepSoundSelect.innerHTML = '';
-            if (audioFiles.length === 0) {
-              beepSoundSelect.innerHTML = '<option value="">No audio files found</option>';
-              beepSoundSelect.disabled = true;
-            } else {
-              beepSoundSelect.disabled = false;
-              audioFiles.forEach(file => {
-                const option = document.createElement('option');
-                option.value = file;
-                option.textContent = file;
-                beepSoundSelect.appendChild(option);
-              });
-              beepAudioFile = beepSoundSelect.value;
-              audioPreview.src = '/Audio/' + beepAudioFile;
-              audioPreview.style.display = 'block';
-            }
-          })
-          .catch(() => {
-            beepSoundSelect.innerHTML = '<option value="">Cannot load audio files</option>';
-            beepSoundSelect.disabled = true;
-            audioPreview.style.display = 'none';
-          });
-      }
-
-      beepSoundSelect.addEventListener('change', () => {
-        beepAudioFile = beepSoundSelect.value;
-        if (beepAudioFile) {
-          audioPreview.src = '/Audio/' + beepAudioFile;
-          audioPreview.style.display = 'block';
-        } else {
-          audioPreview.style.display = 'none';
-        }
-      });
-
-      populateBeepSounds();
 
       // Preset session logic: only fill the fields, do not start session
       function setPresetSession(totalDuration, voiceAnnounce, beepInt) {
@@ -234,6 +181,23 @@
             btn.getAttribute('data-beep')
           );
         });
+      });
+
+      // Handle file input
+      beepFileInput.addEventListener('change', function() {
+        if (beepAudioURL) {
+          URL.revokeObjectURL(beepAudioURL);
+        }
+        const file = beepFileInput.files[0];
+        if (file) {
+          beepAudioURL = URL.createObjectURL(file);
+          beepAudio = new Audio(beepAudioURL);
+          beepFileNameDiv.textContent = `Selected: ${file.name}`;
+        } else {
+          beepAudioURL = null;
+          beepAudio = null;
+          beepFileNameDiv.textContent = '';
+        }
       });
 
       // Update total sessions and display
@@ -257,8 +221,8 @@
 
       // Play beep sound
       function playBeep() {
-        if (beepAudioFile) {
-          const sound = new Audio('/Audio/' + beepAudioFile);
+        if (beepAudio) {
+          const sound = new Audio(beepAudioURL);
           sound.play();
         } else {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -315,7 +279,7 @@
         totalDurationInput.disabled = true;
         sessionDurationInput.disabled = true;
         beepIntervalInput.disabled = true;
-        beepSoundSelect.disabled = true;
+        beepFileInput.disabled = true;
         
         currentRep = 1;
         currentRepElement.textContent = currentRep;
@@ -407,7 +371,7 @@
         totalDurationInput.disabled = false;
         sessionDurationInput.disabled = false;
         beepIntervalInput.disabled = false;
-        beepSoundSelect.disabled = false;
+        beepFileInput.disabled = false;
         statusTextElement.textContent = 'Session stopped';
       }
 
@@ -420,7 +384,7 @@
         totalDurationInput.disabled = false;
         sessionDurationInput.disabled = false;
         beepIntervalInput.disabled = false;
-        beepSoundSelect.disabled = false;
+        beepFileInput.disabled = false;
         statusTextElement.textContent = 'Meditation complete!';
         
         playBeep();
