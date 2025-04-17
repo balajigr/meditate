@@ -121,7 +121,7 @@
   </div>
   
   <div class="input-group">
-    <label for="beep-sound">Select beep sound (.mp3 from this folder):</label>
+    <label for="beep-sound">Select beep sound (.mp3):</label>
     <select id="beep-sound"></select>
     <audio id="audio-preview" controls></audio>
   </div>
@@ -169,21 +169,13 @@
       let sessionSeconds = 0;
       let beepInterval = 0;
 
-      // Populate beep sound dropdown from the same folder as index.html
+      // Populate beep sound dropdown from mp3list.json
       function populateBeepSounds() {
-        fetch('./')
-          .then(response => response.text())
-          .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const links = Array.from(doc.querySelectorAll('a'));
-            const audioFiles = links
-              .map(a => a.getAttribute('href'))
-              .filter(href => href && href.match(/\.mp3$/i) && !href.startsWith('?'))
-              .map(href => decodeURIComponent(href.replace(/^\//, '')));
-
+        fetch('mp3list.json')
+          .then(response => response.json())
+          .then(audioFiles => {
             beepSoundSelect.innerHTML = '';
-            if (audioFiles.length === 0) {
+            if (!audioFiles || audioFiles.length === 0) {
               beepSoundSelect.innerHTML = '<option value="">No .mp3 files found</option>';
               beepSoundSelect.disabled = true;
               audioPreview.style.display = 'none';
