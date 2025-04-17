@@ -121,7 +121,7 @@
   </div>
   
   <div class="input-group">
-    <label for="beep-sound">Select beep sound:</label>
+    <label for="beep-sound">Select beep sound (.mp3 from root):</label>
     <select id="beep-sound"></select>
     <audio id="audio-preview" controls></audio>
   </div>
@@ -169,9 +169,9 @@
       let sessionSeconds = 0;
       let beepInterval = 0;
 
-      // Populate beep sound dropdown from /Audio/
+      // Populate beep sound dropdown from root folder
       function populateBeepSounds() {
-        fetch('/Audio/')
+        fetch('/')
           .then(response => response.text())
           .then(html => {
             const parser = new DOMParser();
@@ -179,13 +179,14 @@
             const links = Array.from(doc.querySelectorAll('a'));
             const audioFiles = links
               .map(a => a.getAttribute('href'))
-              .filter(href => href && href.match(/\.(mp3|wav|ogg|m4a)$/i) && !href.startsWith('?'))
+              .filter(href => href && href.match(/\.mp3$/i) && !href.startsWith('?'))
               .map(href => decodeURIComponent(href.replace(/^\//, '')));
 
             beepSoundSelect.innerHTML = '';
             if (audioFiles.length === 0) {
-              beepSoundSelect.innerHTML = '<option value="">No audio files found</option>';
+              beepSoundSelect.innerHTML = '<option value="">No .mp3 files found</option>';
               beepSoundSelect.disabled = true;
+              audioPreview.style.display = 'none';
             } else {
               beepSoundSelect.disabled = false;
               audioFiles.forEach(file => {
@@ -195,12 +196,12 @@
                 beepSoundSelect.appendChild(option);
               });
               beepAudioFile = beepSoundSelect.value;
-              audioPreview.src = '/Audio/' + beepAudioFile;
+              audioPreview.src = '/' + beepAudioFile;
               audioPreview.style.display = 'block';
             }
           })
           .catch(() => {
-            beepSoundSelect.innerHTML = '<option value="">Cannot load audio files</option>';
+            beepSoundSelect.innerHTML = '<option value="">Cannot load .mp3 files</option>';
             beepSoundSelect.disabled = true;
             audioPreview.style.display = 'none';
           });
@@ -209,7 +210,7 @@
       beepSoundSelect.addEventListener('change', () => {
         beepAudioFile = beepSoundSelect.value;
         if (beepAudioFile) {
-          audioPreview.src = '/Audio/' + beepAudioFile;
+          audioPreview.src = '/' + beepAudioFile;
           audioPreview.style.display = 'block';
         } else {
           audioPreview.style.display = 'none';
@@ -258,7 +259,7 @@
       // Play beep sound
       function playBeep() {
         if (beepAudioFile) {
-          const sound = new Audio('/Audio/' + beepAudioFile);
+          const sound = new Audio('/' + beepAudioFile);
           sound.play();
         } else {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
