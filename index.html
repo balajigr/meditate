@@ -162,6 +162,7 @@
       
       // Audio variables
       let beepAudioFile = null;
+      let beepAudioElem = null; // For iOS/Safari workaround
       
       // Timer variables
       let timerRunning = false;
@@ -253,12 +254,30 @@
       sessionDurationInput.addEventListener('input', updateTotalSessionsDisplay);
       updateTotalSessionsDisplay();
 
-      // Play beep sound
-      function playBeep() {
+      // Prepare and unlock beep audio for iOS Safari
+      function setupBeepAudio() {
+        if (beepAudioElem) {
+          beepAudioElem.pause();
+          beepAudioElem = null;
+        }
         if (beepAudioFile) {
-          const sound = new Audio(beepAudioFile);
-          sound.play();
+          beepAudioElem = new Audio(beepAudioFile);
+          beepAudioElem.load();
+          // "Unlock" the audio element by playing and pausing it in a user gesture
+          beepAudioElem.play().then(() => {
+            beepAudioElem.pause();
+            beepAudioElem.currentTime = 0;
+          }).catch(()=>{});
+        }
+      }
+
+      // Play beep sound (reusing the unlocked audio element)
+      function playBeep() {
+        if (beepAudioElem) {
+          beepAudioElem.currentTime = 0;
+          beepAudioElem.play();
         } else {
+          // fallback: Web Audio API beep
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
           const oscillator = ctx.createOscillator();
           const gainNode = ctx.createGain();
@@ -324,6 +343,9 @@
         // Enable NoSleep.js to keep the screen awake
         if (!noSleep) noSleep = new NoSleep();
         noSleep.enable();
+
+        // Prepare and unlock beep audio for iOS Safari
+        setupBeepAudio();
 
         // Initial announcement
         const startMsg = `Starting ${totalMinutes} minute session`;
