@@ -1,1 +1,401 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meditation Timer</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .preset-buttons {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .preset-buttons .preset-btn {
+      margin: 0 5px 10px 5px;
+      background: #2196f3;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .preset-buttons .preset-btn:hover {
+      background: #1769aa;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="number"], input[type="file"], select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button#start-btn, button#stop-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      width: 100%;
+      margin-bottom: 15px;
+      display: block;
+    }
+    button#start-btn:hover, button#stop-btn:hover {
+      background-color: #45a049;
+    }
+    button#start-btn:disabled, button#stop-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .display {
+      background-color: #f5f5f5;
+      padding: 20px;
+      border-radius: 4px;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .timer {
+      font-size: 48px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .rep-count {
+      font-size: 24px;
+      color: #666;
+    }
+    .status {
+      margin-top: 10px;
+      font-style: italic;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <h1>Meditation Timer</h1>
+  
+  <div class="preset-buttons">
+    <button type="button" class="preset-btn" data-duration="5" data-announce="60" data-beep="30">5 min Session</button>
+    <button type="button" class="preset-btn" data-duration="10" data-announce="60" data-beep="30">10 min Session</button>
+    <button type="button" class="preset-btn" data-duration="15" data-announce="60" data-beep="30">15 min Session</button>
+  </div>
+  
+  <div class="input-group">
+    <label for="total-duration-minutes">Total duration (minutes):</label>
+    <input type="number" id="total-duration-minutes" min="1" value="10">
+  </div>
+  
+  <div class="input-group">
+    <label for="session-duration">Voice announcement after (seconds):</label>
+    <input type="number" id="session-duration" min="1" value="60">
+  </div>
+  
+  <div class="input-group">
+    <label for="beep-interval">Beep interval (seconds):</label>
+    <input type="number" id="beep-interval" min="1" value="1">
+  </div>
+  
+  <div class="input-group">
+    <label for="beep-file">Select beep sound (audio file):</label>
+    <input type="file" id="beep-file" accept="audio/*">
+    <div id="beep-file-name" style="font-size:14px;color:#555;margin-top:4px;"></div>
+  </div>
+  
+  <button id="start-btn">Start Meditation</button>
+  <button id="stop-btn" disabled>Stop Session</button>
+  
+  <div class="display">
+    <div class="rep-count">
+      Session: <span id="current-rep">0</span> / <span id="total-reps">0</span>
+      <span id="total-time"></span>
+    </div>
+    <div class="timer" id="time-display">00:00</div>
+    <div class="status" id="status-text">Ready to start</div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM elements
+      const totalDurationInput = document.getElementById('total-duration-minutes');
+      const sessionDurationInput = document.getElementById('session-duration');
+      const beepIntervalInput = document.getElementById('beep-interval');
+      const beepFileInput = document.getElementById('beep-file');
+      const beepFileNameDiv = document.getElementById('beep-file-name');
+      const startBtn = document.getElementById('start-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const currentRepElement = document.getElementById('current-rep');
+      const totalRepsElement = document.getElementById('total-reps');
+      const timeDisplayElement = document.getElementById('time-display');
+      const statusTextElement = document.getElementById('status-text');
+      const totalTimeElement = document.getElementById('total-time');
+      const presetBtns = document.querySelectorAll('.preset-btn');
+      
+      // Audio variables
+      let beepAudioURL = null;
+      let beepAudio = null;
+      
+      // Timer variables
+      let timerRunning = false;
+      let currentRep = 0;
+      let totalReps = 0;
+      let currentTime = 0;
+      let timerId = null;
+      let elapsedSeconds = 0;
+      let totalDurationSeconds = 0;
+      let sessionSeconds = 0;
+      let beepInterval = 0;
+
+      // Preset session logic: only fill the fields, do not start session
+      function setPresetSession(totalDuration, voiceAnnounce, beepInt) {
+        totalDurationInput.value = totalDuration;
+        sessionDurationInput.value = voiceAnnounce;
+        beepIntervalInput.value = beepInt;
+        updateTotalSessionsDisplay();
+      }
+
+      presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          setPresetSession(
+            btn.getAttribute('data-duration'),
+            btn.getAttribute('data-announce'),
+            btn.getAttribute('data-beep')
+          );
+        });
+      });
+
+      // Handle file input
+      beepFileInput.addEventListener('change', function() {
+        if (beepAudioURL) {
+          URL.revokeObjectURL(beepAudioURL);
+        }
+        const file = beepFileInput.files[0];
+        if (file) {
+          beepAudioURL = URL.createObjectURL(file);
+          beepAudio = new Audio(beepAudioURL);
+          beepFileNameDiv.textContent = `Selected: ${file.name}`;
+        } else {
+          beepAudioURL = null;
+          beepAudio = null;
+          beepFileNameDiv.textContent = '';
+        }
+      });
+
+      // Update total sessions and display
+      function updateTotalSessionsDisplay() {
+        const totalMinutes = parseInt(totalDurationInput.value, 10);
+        const sessionSecondsVal = parseInt(sessionDurationInput.value, 10);
+        if (isNaN(totalMinutes) || isNaN(sessionSecondsVal) || totalMinutes < 1 || sessionSecondsVal < 1) {
+          totalRepsElement.textContent = '0';
+          totalTimeElement.textContent = '';
+          return;
+        }
+        totalDurationSeconds = totalMinutes * 60;
+        totalReps = Math.floor(totalDurationSeconds / sessionSecondsVal);
+        totalRepsElement.textContent = totalReps;
+        totalTimeElement.textContent = ` (Total: ${totalMinutes} min)`;
+      }
+
+      totalDurationInput.addEventListener('input', updateTotalSessionsDisplay);
+      sessionDurationInput.addEventListener('input', updateTotalSessionsDisplay);
+      updateTotalSessionsDisplay();
+
+      // Play beep sound
+      function playBeep() {
+        if (beepAudio) {
+          const sound = new Audio(beepAudioURL);
+          sound.play();
+        } else {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          oscillator.type = 'sine';
+          oscillator.frequency.value = 800;
+          oscillator.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          gainNode.gain.value = 0.1;
+          oscillator.start();
+          setTimeout(() => {
+            oscillator.stop();
+            ctx.close();
+          }, 100);
+        }
+      }
+
+      // Format time for spoken announcement
+      function formatTimeSpoken(seconds) {
+        const min = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        let parts = [];
+        if (min > 0) parts.push(`${min} minute${min !== 1 ? 's' : ''}`);
+        if (sec > 0) parts.push(`${sec} second${sec !== 1 ? 's' : ''}`);
+        return parts.join(' and ') || '0 seconds';
+      }
+
+      // Main timer function
+      function startTimer() {
+        if (timerRunning) return;
+
+        const totalMinutes = parseInt(totalDurationInput.value, 10);
+        sessionSeconds = parseInt(sessionDurationInput.value, 10);
+        beepInterval = parseInt(beepIntervalInput.value, 10);
+
+        if ([totalMinutes, sessionSeconds, beepInterval].some(isNaN) || 
+            [totalMinutes, sessionSeconds, beepInterval].some(n => n < 1)) {
+          alert('Please enter valid positive numbers');
+          return;
+        }
+
+        totalDurationSeconds = totalMinutes * 60;
+        totalReps = Math.floor(totalDurationSeconds / sessionSeconds);
+
+        if (totalReps < 1) {
+          alert('Total duration must be at least as long as the session duration.');
+          return;
+        }
+
+        timerRunning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        totalDurationInput.disabled = true;
+        sessionDurationInput.disabled = true;
+        beepIntervalInput.disabled = true;
+        beepFileInput.disabled = true;
+        
+        currentRep = 1;
+        currentRepElement.textContent = currentRep;
+        totalRepsElement.textContent = totalReps;
+        elapsedSeconds = 0;
+        statusTextElement.textContent = `Session ${currentRep} of ${totalReps}`;
+        
+        // Initial announcement
+        const startMsg = `Starting ${totalMinutes} minute session`;
+        const startUtterance = new SpeechSynthesisUtterance(startMsg);
+        startUtterance.onend = () => runTimer();
+        window.speechSynthesis.speak(startUtterance);
+      }
+
+      // Timer logic
+      function runTimer() {
+        let sessionElapsed = 0;
+        currentTime = sessionSeconds;
+
+        function timerTick() {
+          if (!timerRunning) return;
+
+          elapsedSeconds++;
+          sessionElapsed++;
+          currentTime--;
+
+          // Determine if this second is a voice announcement second
+          const isVoiceAnnouncement = (sessionElapsed === sessionSeconds) || (elapsedSeconds === totalDurationSeconds);
+
+          // Beep at beep interval, but NOT if this is a voice announcement second
+          if (!isVoiceAnnouncement && (sessionElapsed % beepInterval === 0)) {
+            playBeep();
+          }
+
+          updateTimeDisplay(totalDurationSeconds - elapsedSeconds);
+
+          if (sessionElapsed < sessionSeconds && elapsedSeconds < totalDurationSeconds) {
+            timerId = setTimeout(timerTick, 1000);
+          } else {
+            if (elapsedSeconds < totalDurationSeconds) {
+              const timeSpoken = formatTimeSpoken(elapsedSeconds);
+              if (timeSpoken) {
+                const utterance = new SpeechSynthesisUtterance(timeSpoken);
+                utterance.onend = () => {
+                  if (timerRunning) {
+                    currentRep++;
+                    currentRepElement.textContent = currentRep <= totalReps ? currentRep : totalReps;
+                    statusTextElement.textContent = `Session ${currentRep} of ${totalReps}`;
+                    sessionElapsed = 0;
+                    currentTime = sessionSeconds;
+                    timerId = setTimeout(timerTick, 1000);
+                  }
+                };
+                window.speechSynthesis.speak(utterance);
+              } else {
+                if (timerRunning) {
+                  currentRep++;
+                  currentRepElement.textContent = currentRep <= totalReps ? currentRep : totalReps;
+                  statusTextElement.textContent = `Session ${currentRep} of ${totalReps}`;
+                  sessionElapsed = 0;
+                  currentTime = sessionSeconds;
+                  timerId = setTimeout(timerTick, 1000);
+                }
+              }
+            } else {
+              finishTimer();
+            }
+          }
+        }
+
+        updateTimeDisplay(totalDurationSeconds);
+        timerId = setTimeout(timerTick, 1000);
+      }
+
+      // Update display
+      function updateTimeDisplay(remainingSeconds) {
+        const min = Math.floor(remainingSeconds / 60);
+        const sec = remainingSeconds % 60;
+        timeDisplayElement.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      }
+
+      // Stop timer
+      function stopTimer() {
+        timerRunning = false;
+        clearTimeout(timerId);
+        window.speechSynthesis.cancel();
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        totalDurationInput.disabled = false;
+        sessionDurationInput.disabled = false;
+        beepIntervalInput.disabled = false;
+        beepFileInput.disabled = false;
+        statusTextElement.textContent = 'Session stopped';
+      }
+
+      // Finish timer
+      function finishTimer() {
+        timerRunning = false;
+        clearTimeout(timerId);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        totalDurationInput.disabled = false;
+        sessionDurationInput.disabled = false;
+        beepIntervalInput.disabled = false;
+        beepFileInput.disabled = false;
+        statusTextElement.textContent = 'Meditation complete!';
+        
+        playBeep();
+        const utterance = new SpeechSynthesisUtterance('Session completed');
+        window.speechSynthesis.speak(utterance);
+      }
+
+      // Event listeners
+      startBtn.addEventListener('click', startTimer);
+      stopBtn.addEventListener('click', stopTimer);
+    });
+  </script>
+</body>
+</html>
