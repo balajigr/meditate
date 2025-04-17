@@ -95,6 +95,8 @@
       width: 100%;
     }
   </style>
+  <!-- NoSleep.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 </head>
 <body>
   <h1>Meditation Timer</h1>
@@ -139,6 +141,9 @@
   </div>
 
   <script>
+    // NoSleep.js integration
+    let noSleep = null;
+
     document.addEventListener('DOMContentLoaded', () => {
       // DOM elements
       const totalDurationInput = document.getElementById('total-duration-minutes');
@@ -316,6 +321,10 @@
         elapsedSeconds = 0;
         statusTextElement.textContent = `Session ${currentRep} of ${totalReps}`;
         
+        // Enable NoSleep.js to keep the screen awake
+        if (!noSleep) noSleep = new NoSleep();
+        noSleep.enable();
+
         // Initial announcement
         const startMsg = `Starting ${totalMinutes} minute session`;
         const startUtterance = new SpeechSynthesisUtterance(startMsg);
@@ -402,6 +411,7 @@
         beepIntervalInput.disabled = false;
         beepSoundSelect.disabled = false;
         statusTextElement.textContent = 'Session stopped';
+        if (noSleep) noSleep.disable();
       }
 
       // Finish timer
@@ -415,10 +425,10 @@
         beepIntervalInput.disabled = false;
         beepSoundSelect.disabled = false;
         statusTextElement.textContent = 'Meditation complete!';
-        
         playBeep();
         const utterance = new SpeechSynthesisUtterance('Session completed');
         window.speechSynthesis.speak(utterance);
+        if (noSleep) noSleep.disable();
       }
 
       // Event listeners
