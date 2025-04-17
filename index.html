@@ -121,7 +121,7 @@
   </div>
   
   <div class="input-group">
-    <label for="beep-sound">Select beep sound (.mp3 from root):</label>
+    <label for="beep-sound">Select beep sound (.mp3 from this folder):</label>
     <select id="beep-sound"></select>
     <audio id="audio-preview" controls></audio>
   </div>
@@ -169,9 +169,9 @@
       let sessionSeconds = 0;
       let beepInterval = 0;
 
-      // Populate beep sound dropdown from root folder
+      // Populate beep sound dropdown from the same folder as index.html
       function populateBeepSounds() {
-        fetch('/')
+        fetch('./')
           .then(response => response.text())
           .then(html => {
             const parser = new DOMParser();
@@ -196,7 +196,7 @@
                 beepSoundSelect.appendChild(option);
               });
               beepAudioFile = beepSoundSelect.value;
-              audioPreview.src = '/' + beepAudioFile;
+              audioPreview.src = beepAudioFile;
               audioPreview.style.display = 'block';
             }
           })
@@ -210,7 +210,7 @@
       beepSoundSelect.addEventListener('change', () => {
         beepAudioFile = beepSoundSelect.value;
         if (beepAudioFile) {
-          audioPreview.src = '/' + beepAudioFile;
+          audioPreview.src = beepAudioFile;
           audioPreview.style.display = 'block';
         } else {
           audioPreview.style.display = 'none';
@@ -259,7 +259,7 @@
       // Play beep sound
       function playBeep() {
         if (beepAudioFile) {
-          const sound = new Audio('/' + beepAudioFile);
+          const sound = new Audio(beepAudioFile);
           sound.play();
         } else {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
